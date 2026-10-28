@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo de Productos - Hoja de Cálculo Web</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- SheetJS para manejar Excel (.xlsx) y CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.05);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+  <!-- Header Header & Navigation -->
+  <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo / Title -->
+        <div class="flex items-center space-x-3">
+          <div class="bg-brand-600 text-white p-2 rounded-xl shadow-md">
+            <i data-lucide="package" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight">StockSync Live</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Catálogo Web Sincronizado con Excel/CSV</p>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Theme Toggle -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- Status Auto-Save Indicator -->
+          <div id="save-status" class="hidden sm:flex items-center text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1"></i>
+            <span id="save-status-text">Auto-guardado</span>
+          </div>
+
+          <!-- Guide Modal Button -->
+          <button onclick="toggleModal('github-guide-modal')" class="p-2 text-slate-600 hover:text-brand-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Guía de Despliegue GitHub Pages">
+            <i data-lucide="help-circle" class="w-5 h-5"></i>
+          </button>
+
+          <!-- Dark Mode Toggle -->
+          <button id="theme-toggle" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" title="Cambiar tema">
+            <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+            <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+          </button>
+
+          <!-- Add Product Button -->
+          <button onclick="openProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-lg font-medium text-sm flex items-center shadow-sm transition-colors">
+            <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>
+            <span>Nuevo Producto</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+    <!-- Control Panel & Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <!-- Card Stats 1 -->
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Productos</p>
+          <h3 id="stat-total" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+        <div class="p-3 bg-blue-50 dark:bg-blue-900/30 text-brand-600 dark:text-brand-400 rounded-xl">
+          <i data-lucide="boxes" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card Stats 2 -->
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Categorías</p>
+          <h3 id="stat-categories" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+        <div class="p-3 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
+          <i data-lucide="tags" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Card Stats 3 -->
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Marcas Registradas</p>
+          <h3 id="stat-brands" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+        <div class="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+          <i data-lucide="bookmark" class="w-6 h-6"></i>
+        </div>
+      </div>
+
+      <!-- Quick Export / Import Options -->
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between gap-2">
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sincronización Excel/CSV</span>
+        <div class="flex items-center gap-2">
+          <label class="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-1.5 px-3 rounded-lg text-xs font-medium cursor-pointer transition-colors text-center flex items-center justify-center gap-1.5">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Importar</span>
+            <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+          </label>
+          <button onclick="exportData('xlsx')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg text-xs font-medium transition-colors text-center flex items-center justify-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Excel (.xlsx)</span>
+          </button>
+          <button onclick="exportData('csv')" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors" title="Exportar CSV">
+            CSV
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and View Controls Bar -->
+    <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col lg:flex-row gap-4 justify-between items-center">
+      <!-- Search Input -->
+      <div class="relative w-full lg:w-96">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" id="search-input" placeholder="Buscar por producto, marca o categoría..." oninput="renderApp()" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+      </div>
+
+      <!-- Filter dropdowns -->
+      <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <!-- Category Filter -->
+        <select id="filter-category" onchange="renderApp()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="">Todas las Categorías</option>
+        </select>
+
+        <!-- Brand Filter -->
+        <select id="filter-brand" onchange="renderApp()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="">Todas las Marcas</option>
+        </select>
+
+        <!-- Download Template & Reset -->
+        <button onclick="downloadSampleTemplate()" class="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline px-2 py-1" title="Descargar Plantilla CSV para llenar">
+          Descargar Plantilla
+        </button>
+
+        <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+
+        <!-- Toggle View Mode (Table / Grid) -->
+        <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+          <button id="view-table-btn" onclick="setViewMode('table')" class="p-1.5 rounded-md text-xs font-medium transition-all shadow-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white" title="Vista Tabla Editable">
+            <i data-lucide="table" class="w-4 h-4"></i>
+          </button>
+          <button id="view-grid-btn" onclick="setViewMode('grid')" class="p-1.5 rounded-md text-xs font-medium transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white" title="Vista Tarjetas (Grid)">
+            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dynamic Content (Table / Grid) -->
+    <div id="content-container" class="flex-grow">
+      <!-- Rendered via JavaScript -->
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>StockSync - Edición interactiva y sincronizada en tiempo real.</p>
+      <div class="flex items-center space-x-4">
+        <button onclick="toggleModal('github-guide-modal')" class="hover:underline flex items-center gap-1">
+          <i data-lucide="github" class="w-3.5 h-3.5"></i> Desplegar en GitHub Pages
+        </button>
+        <button onclick="resetDataConfirm()" class="text-rose-500 hover:underline">
+          Restablecer Datos
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal: Agregar / Editar Producto Manualmente -->
+  <div id="product-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <h3 id="modal-title" class="font-bold text-slate-800 dark:text-white">Nuevo Producto</h3>
+        <button onclick="toggleModal('product-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="product-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+        <input type="hidden" id="prod-id">
+
+        <!-- Nombre -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Nombre del Producto *</label>
+          <input type="text" id="prod-name" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+
+        <!-- Categoría y Marca -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Categoría</label>
+            <input type="text" id="prod-category" placeholder="Ej. Electrónica" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Marca</label>
+            <input type="text" id="prod-brand" placeholder="Ej. Sony" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+        </div>
+
+        <!-- Dimensiones (Ancho x Largo x Profundo) -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Dimensiones (Ancho x Largo x Profundo en cm)</label>
+          <div class="grid grid-cols-3 gap-2">
+            <input type="text" id="prod-width" placeholder="Ancho (cm)" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <input type="text" id="prod-length" placeholder="Largo (cm)" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <input type="text" id="prod-depth" placeholder="Profundo (cm)" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+        </div>
+
+        <!-- Gramaje / Peso -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Gramaje / Peso (g o kg)</label>
+          <input type="text" id="prod-weight" placeholder="Ej. 250g o 1.5kg" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+
+        <!-- Imagen URL o Carga -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">URL de la Imagen (o cargar archivo)</label>
+          <div class="flex gap-2">
+            <input type="url" id="prod-image" placeholder="https://ejemplo.com/imagen.jpg" class="flex-grow px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <label class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer flex items-center justify-center">
+              <i data-lucide="upload" class="w-4 h-4"></i>
+              <input type="file" id="prod-img-file" accept="image/*" class="hidden" onchange="handleImageFileSelect(event)">
+            </label>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" onclick="toggleModal('product-modal')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium">Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Guía para GitHub Pages -->
+  <div id="github-guide-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <i data-lucide="github" class="w-5 h-5"></i>
+          Cómo publicar esta app en GitHub Pages (Paso a Paso)
+        </h3>
+        <button onclick="toggleModal('github-guide-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-600 dark:text-slate-300">
+        <p class="leading-relaxed">
+          Puedes subir este archivo a **GitHub Pages** para tener tu propia página web pública y siempre activa que te permita ver y editar tus datos desde cualquier dispositivo.
+        </p>
+
+        <ol class="list-decimal list-inside space-y-3 font-normal">
+          <li class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+            <strong class="text-slate-800 dark:text-white">Guarda este archivo</strong>
+            <p class="mt-1 text-xs text-slate-500">Asegúrate de guardar este archivo fuente como <code class="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded text-brand-600">index.html</code> en tu computadora.</p>
+          </li>
+
+          <li class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+            <strong class="text-slate-800 dark:text-white">Crea un Repositorio en GitHub</strong>
+            <p class="mt-1 text-xs text-slate-500">Inicia sesión en GitHub, crea un nuevo repositorio público (ej. <code class="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">mi-catalogo-productos</code>).</p>
+          </li>
+
+          <li class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+            <strong class="text-slate-800 dark:text-white">Sube el archivo</strong>
+            <p class="mt-1 text-xs text-slate-500">Haz clic en <i>"Upload an existing file"</i> y sube el archivo <code class="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">index.html</code> directamente a la rama principal (main).</p>
+          </li>
+
+          <li class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+            <strong class="text-slate-800 dark:text-white">Activa GitHub Pages</strong>
+            <p class="mt-1 text-xs text-slate-500">Ve a <b>Settings &gt; Pages</b> en tu repositorio. En <i>Branch</i> selecciona <code class="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">main</code> y guarda. En 1-2 minutos tu enlace estará listo.</p>
+          </li>
+        </ol>
+
+        <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 rounded-lg text-amber-800 dark:text-amber-300 text-xs flex gap-2">
+          <i data-lucide="info" class="w-5 h-5 flex-shrink-0"></i>
+          <div>
+            <strong>¿Cómo sincronizar con Excel?</strong>
+            <p class="mt-0.5">Cualquier cambio que realices en la web se guarda automáticamente en el navegador. Cuando desees respaldar o trabajar en tu hoja de cálculo local, usa el botón <b>Exportar a Excel (.xlsx)</b>. Para cargar cambios masivos realizados en Excel, usa el botón <b>Importar</b>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-end">
+        <button onclick="toggleModal('github-guide-modal')" class="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-medium">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Initial Seed Data
+    const INITIAL_PRODUCTS = [
+      {
+        id: '1',
+        name: 'Auriculares Inalámbricos Pro',
+        category: 'Electrónica',
+        brand: 'SoundPulse',
+        width: '18',
+        length: '20',
+        depth: '8',
+        weight: '250g',
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80'
+      },
+      {
+        id: '2',
+        name: 'Botella Térmica de Acero 750ml',
+        category: 'Hogar y Cocina',
+        brand: 'EcoHydro',
+        width: '7.5',
+        length: '26',
+        depth: '7.5',
+        weight: '380g',
+        image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=300&q=80'
+      },
+      {
+        id: '3',
+        name: 'Mochila Urbana Impermeable',
+        category: 'Accesorios',
+        brand: 'NordicPack',
+        width: '30',
+        length: '45',
+        depth: '15',
+        weight: '850g',
+        image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&q=80'
+      },
+      {
+        id: '4',
+        name: 'Lámpara LED de Escritorio Smart',
+        category: 'Iluminación',
+        brand: 'Lumina',
+        width: '15',
+        length: '40',
+        depth: '15',
+        weight: '620g',
+        image: 'https://images.unsplash.com/photo-1534073828943-f801091bb18c?w=300&q=80'
+      }
+    ];
+
+    // State Variables
+    let products = [];
+    let currentView = 'table'; // 'table' or 'grid'
+
+    // Initialize Application
+    window.addEventListener('DOMContentLoaded', () => {
+      loadLocalStorageData();
+      initTheme();
+      renderApp();
+      lucide.createIcons();
+    });
+
+    // Dark Mode Theme Init
+    function initTheme() {
+      const themeToggle = document.getElementById('theme-toggle');
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      themeToggle.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      });
+    }
+
+    // LocalStorage State Management
+    function loadLocalStorageData() {
+      const stored = localStorage.getItem('stocksync_products');
+      if (stored) {
+        try {
+          products = JSON.parse(stored);
+        } catch (e) {
+          console.error('Error parsing stored products', e);
+          products = [...INITIAL_PRODUCTS];
+        }
+      } else {
+        products = [...INITIAL_PRODUCTS];
+        saveLocalStorageData();
+      }
+    }
+
+    function saveLocalStorageData() {
+      localStorage.setItem('stocksync_products', JSON.stringify(products));
+      triggerSaveIndicator();
+    }
+
+    function triggerSaveIndicator() {
+      const statusEl = document.getElementById('save-status');
+      statusEl.classList.remove('hidden');
+      setTimeout(() => {
+        // Keeps status visible
+      }, 1000);
+    }
+
+    // Render Main Views & Stats
+    function renderApp() {
+      updateStats();
+      populateFilterOptions();
+      const filtered = getFilteredProducts();
+
+      const container = document.getElementById('content-container');
+      if (currentView === 'table') {
+        container.innerHTML = buildTableView(filtered);
+      } else {
+        container.innerHTML = buildGridView(filtered);
+      }
+
+      lucide.createIcons();
+    }
+
+    // Filter Logic
+    function getFilteredProducts() {
+      const search = document.getElementById('search-input').value.toLowerCase().trim();
+      const catFilter = document.getElementById('filter-category').value;
+      const brandFilter = document.getElementById('filter-brand').value;
+
+      return products.filter(p => {
+        const matchesSearch = !search || 
+          p.name.toLowerCase().includes(search) || 
+          (p.brand && p.brand.toLowerCase().includes(search)) || 
+          (p.category && p.category.toLowerCase().includes(search));
+
+        const matchesCat = !catFilter || p.category === catFilter;
+        const matchesBrand = !brandFilter || p.brand === brandFilter;
+
+        return matchesSearch && matchesCat && matchesBrand;
+      });
+    }
+
+    // Update Statistics Bar
+    function updateStats() {
+      document.getElementById('stat-total').innerText = products.length;
+      
+      const categories = new Set(products.map(p => p.category).filter(Boolean));
+      document.getElementById('stat-categories').innerText = categories.size;
+
+      const brands = new Set(products.map(p => p.brand).filter(Boolean));
+      document.getElementById('stat-brands').innerText = brands.size;
+    }
+
+    // Populate Filter Select Elements
+    function populateFilterOptions() {
+      const catSelect = document.getElementById('filter-category');
+      const brandSelect = document.getElementById('filter-brand');
+
+      const currentCat = catSelect.value;
+      const currentBrand = brandSelect.value;
+
+      const categories = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+      const brands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
+
+      catSelect.innerHTML = '<option value="">Todas las Categorías</option>' + 
+        categories.map(c => `<option value="${c}" ${c === currentCat ? 'selected' : ''}>${c}</option>`).join('');
+
+      brandSelect.innerHTML = '<option value="">Todas las Marcas</option>' + 
+        brands.map(b => `<option value="${b}" ${b === currentBrand ? 'selected' : ''}>${b}</option>`).join('');
+    }
+
+    // View Switcher (Table / Grid)
+    function setViewMode(mode) {
+      currentView = mode;
+      const tableBtn = document.getElementById('view-table-btn');
+      const gridBtn = document.getElementById('view-grid-btn');
+
+      if (mode === 'table') {
+        tableBtn.className = 'p-1.5 rounded-md text-xs font-medium transition-all shadow-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white';
+        gridBtn.className = 'p-1.5 rounded-md text-xs font-medium transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white';
+      } else {
+        gridBtn.className = 'p-1.5 rounded-md text-xs font-medium transition-all shadow-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white';
+        tableBtn.className = 'p-1.5 rounded-md text-xs font-medium transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white';
+      }
+      renderApp();
+    }
+
+    // Build Table View (Inline Editable)
+    function buildTableView(items) {
+      if (items.length === 0) {
+        return buildEmptyState();
+      }
+
+      return `
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  <th class="py-3 px-4 w-16 text-center">Imagen</th>
+                  <th class="py-3 px-4 min-w-[180px]">Producto</th>
+                  <th class="py-3 px-4 min-w-[120px]">Categoría</th>
+                  <th class="py-3 px-4 min-w-[120px]">Marca</th>
+                  <th class="py-3 px-4 min-w-[200px]">Dimensiones (An x Lg x Prof cm)</th>
+                  <th class="py-3 px-4 min-w-[100px]">Gramaje</th>
+                  <th class="py-3 px-4 w-20 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                ${items.map(p => `
+                  <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors group">
+                    <!-- Image -->
+                    <td class="py-2.5 px-4 text-center">
+                      <img src="${p.image || 'https://placehold.co/100x100/e2e8f0/64748b?text=Sin+Imagen'}" 
+                           alt="${p.name}" 
+                           onerror="this.src='https://placehold.co/100x100/e2e8f0/64748b?text=Error'"
+                           class="w-10 h-10 object-cover rounded-lg border border-slate-200 dark:border-slate-700 mx-auto bg-slate-100 dark:bg-slate-900">
+                    </td>
+
+                    <!-- Editable Name -->
+                    <td class="py-2.5 px-4">
+                      <input type="text" value="${escapeHtml(p.name)}" 
+                        onchange="inlineUpdate('${p.id}', 'name', this.value)"
+                        class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:bg-white dark:focus:bg-slate-900 px-1 py-0.5 rounded font-medium text-slate-800 dark:text-slate-100">
+                    </td>
+
+                    <!-- Editable Category -->
+                    <td class="py-2.5 px-4">
+                      <input type="text" value="${escapeHtml(p.category || '')}" 
+                        onchange="inlineUpdate('${p.id}', 'category', this.value)"
+                        placeholder="Categoría"
+                        class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:bg-white dark:focus:bg-slate-900 px-1 py-0.5 rounded text-xs text-slate-600 dark:text-slate-300">
+                    </td>
+
+                    <!-- Editable Brand -->
+                    <td class="py-2.5 px-4">
+                      <input type="text" value="${escapeHtml(p.brand || '')}" 
+                        onchange="inlineUpdate('${p.id}', 'brand', this.value)"
+                        placeholder="Marca"
+                        class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:bg-white dark:focus:bg-slate-900 px-1 py-0.5 rounded text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    </td>
+
+                    <!-- Editable Dimensions (Width x Length x Depth) -->
+                    <td class="py-2.5 px-4">
+                      <div class="flex items-center space-x-1 text-xs">
+                        <input type="text" value="${escapeHtml(p.width || '')}" placeholder="Ancho"
+                          onchange="inlineUpdate('${p.id}', 'width', this.value)"
+                          class="w-14 text-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-1 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        <span class="text-slate-400">x</span>
+                        <input type="text" value="${escapeHtml(p.length || '')}" placeholder="Largo"
+                          onchange="inlineUpdate('${p.id}', 'length', this.value)"
+                          class="w-14 text-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-1 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        <span class="text-slate-400">x</span>
+                        <input type="text" value="${escapeHtml(p.depth || '')}" placeholder="Prof."
+                          onchange="inlineUpdate('${p.id}', 'depth', this.value)"
+                          class="w-14 text-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-1 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                      </div>
+                    </td>
+
+                    <!-- Editable Weight -->
+                    <td class="py-2.5 px-4">
+                      <input type="text" value="${escapeHtml(p.weight || '')}" 
+                        onchange="inlineUpdate('${p.id}', 'weight', this.value)"
+                        placeholder="Ej. 200g"
+                        class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:bg-white dark:focus:bg-slate-900 px-1 py-0.5 rounded text-xs text-slate-600 dark:text-slate-300">
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="py-2.5 px-4 text-center">
+                      <div class="flex items-center justify-center space-x-1">
+                        <button onclick="openProductModal('${p.id}')" class="p-1 text-slate-400 hover:text-brand-600 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Editar en formulario">
+                          <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteProduct('${p.id}')" class="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Eliminar producto">
+                          <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Build Grid View Cards
+    function buildGridView(items) {
+      if (items.length === 0) {
+        return buildEmptyState();
+      }
+
+      return `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          ${items.map(p => `
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+              <!-- Card Image Header -->
+              <div class="relative h-44 bg-slate-100 dark:bg-slate-900 overflow-hidden flex items-center justify-center border-b border-slate-100 dark:border-slate-700">
+                <img src="${p.image || 'https://placehold.co/300x200/e2e8f0/64748b?text=Sin+Imagen'}" 
+                     alt="${p.name}" 
+                     onerror="this.src='https://placehold.co/300x200/e2e8f0/64748b?text=Error'"
+                     class="w-full h-full object-cover">
+                <div class="absolute top-2 right-2 flex gap-1">
+                  <span class="bg-slate-900/70 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+                    ${escapeHtml(p.brand || 'Sin marca')}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Card Body -->
+              <div class="p-4 flex-grow flex flex-col justify-between gap-3">
+                <div>
+                  <div class="text-[11px] font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wide">
+                    ${escapeHtml(p.category || 'General')}
+                  </div>
+                  <h4 class="font-semibold text-slate-800 dark:text-white text-base line-clamp-1 mt-0.5" title="${escapeHtml(p.name)}">
+                    ${escapeHtml(p.name)}
+                  </h4>
+                </div>
+
+                <!-- Attributes Info -->
+                <div class="space-y-1.5 text-xs bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 flex items-center gap-1"><i data-lucide="box" class="w-3.5 h-3.5"></i> Dimensiones:</span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200">
+                      ${p.width || '0'} x ${p.length || '0'} x ${p.depth || '0'} cm
+                    </span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 flex items-center gap-1"><i data-lucide="scale" class="w-3.5 h-3.5"></i> Gramaje:</span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(p.weight || 'N/A')}</span>
+                  </div>
+                </div>
+
+                <!-- Card Footer Actions -->
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                  <button onclick="openProductModal('${p.id}')" class="px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-1 transition-colors">
+                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                    <span>Editar</span>
+                  </button>
+                  <button onclick="deleteProduct('${p.id}')" class="px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg flex items-center gap-1 transition-colors">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Eliminar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Empty State Component
+    function buildEmptyState() {
+      return `
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center flex flex-col items-center justify-center">
+          <div class="p-4 bg-slate-100 dark:bg-slate-700/50 rounded-full text-slate-400 mb-3">
+            <i data-lucide="package-search" class="w-8 h-8"></i>
+          </div>
+          <h3 class="font-semibold text-lg text-slate-800 dark:text-white">No se encontraron productos</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-4">
+            No hay elementos que coincidan con la búsqueda o filtro actual. Prueba agregando uno nuevo o importa un archivo Excel.
+          </p>
+          <button onclick="openProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> Crear Nuevo Producto
+          </button>
+        </div>
+      `;
+    }
+
+    // Inline Updating in Table View
+    function inlineUpdate(id, field, value) {
+      const index = products.findIndex(p => p.id === id);
+      if (index !== -1) {
+        products[index][field] = value.trim();
+        saveLocalStorageData();
+        updateStats();
+        populateFilterOptions();
+        showToast('Guardado automático', 'info');
+      }
+    }
+
+    // Handle Form Submit for Adding / Editing Modal
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('prod-id').value;
+      
+      const newProduct = {
+        id: id || Date.now().toString(),
+        name: document.getElementById('prod-name').value.trim(),
+        category: document.getElementById('prod-category').value.trim(),
+        brand: document.getElementById('prod-brand').value.trim(),
+        width: document.getElementById('prod-width').value.trim(),
+        length: document.getElementById('prod-length').value.trim(),
+        depth: document.getElementById('prod-depth').value.trim(),
+        weight: document.getElementById('prod-weight').value.trim(),
+        image: document.getElementById('prod-image').value.trim()
+      };
+
+      if (id) {
+        const idx = products.findIndex(p => p.id === id);
+        if (idx !== -1) products[idx] = newProduct;
+        showToast('Producto actualizado con éxito');
+      } else {
+        products.unshift(newProduct);
+        showToast('Producto añadido a la lista');
+      }
+
+      saveLocalStorageData();
+      toggleModal('product-modal');
+      renderApp();
+    }
+
+    // Open Modal for Create or Edit
+    function openProductModal(id = null) {
+      const modalTitle = document.getElementById('modal-title');
+      const form = document.getElementById('product-form');
+
+      form.reset();
+
+      if (id) {
+        const prod = products.find(p => p.id === id);
+        if (prod) {
+          modalTitle.innerText = 'Editar Producto';
+          document.getElementById('prod-id').value = prod.id;
+          document.getElementById('prod-name').value = prod.name || '';
+          document.getElementById('prod-category').value = prod.category || '';
+          document.getElementById('prod-brand').value = prod.brand || '';
+          document.getElementById('prod-width').value = prod.width || '';
+          document.getElementById('prod-length').value = prod.length || '';
+          document.getElementById('prod-depth').value = prod.depth || '';
+          document.getElementById('prod-weight').value = prod.weight || '';
+          document.getElementById('prod-image').value = prod.image || '';
+        }
+      } else {
+        modalTitle.innerText = 'Nuevo Producto';
+        document.getElementById('prod-id').value = '';
+      }
+
+      toggleModal('product-modal');
+    }
+
+    // Delete Product
+    function deleteProduct(id) {
+      if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+        products = products.filter(p => p.id !== id);
+        saveLocalStorageData();
+        renderApp();
+        showToast('Producto eliminado');
+      }
+    }
+
+    // Handle Local Image Upload to Base64
+    function handleImageFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('prod-image').value = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Import CSV / Excel File
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          if (jsonData.length === 0) {
+            showToast('El archivo cargado está vacío', 'error');
+            return;
+          }
+
+          // Map CSV / Excel columns to product objects
+          const importedProducts = jsonData.map((row, i) => {
+            return {
+              id: Date.now().toString() + '_' + i,
+              name: row['Nombre'] || row['nombre'] || row['Producto'] || row['NAME'] || `Producto ${i+1}`,
+              category: row['Categoria'] || row['Categoría'] || row['category'] || '',
+              brand: row['Marca'] || row['marca'] || row['brand'] || '',
+              width: String(row['Ancho'] || row['Width'] || row['ancho'] || ''),
+              length: String(row['Largo'] || row['Length'] || row['largo'] || ''),
+              depth: String(row['Profundo'] || row['Profundidad'] || row['depth'] || ''),
+              weight: String(row['Gramaje'] || row['Peso'] || row['weight'] || ''),
+              image: row['Imagen'] || row['Image'] || row['URL Imagen'] || ''
+            };
+          });
+
+          products = [...importedProducts, ...products];
+          saveLocalStorageData();
+          renderApp();
+          showToast(`Se importaron ${importedProducts.length} productos correctamente`);
+        } catch (err) {
+          console.error(err);
+          showToast('Error al procesar el archivo Excel/CSV', 'error');
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+      e.target.value = ''; // Reset input
+    }
+
+    // Export Data to Excel (.xlsx) or CSV
+    function exportData(format = 'xlsx') {
+      if (products.length === 0) {
+        showToast('No hay datos para exportar', 'error');
+        return;
+      }
+
+      const formattedData = products.map(p => ({
+        'Nombre': p.name,
+        'Categoría': p.category,
+        'Marca': p.brand,
+        'Ancho (cm)': p.width,
+        'Largo (cm)': p.length,
+        'Profundo (cm)': p.depth,
+        'Gramaje / Peso': p.weight,
+        'Imagen URL': p.image
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos');
+
+      const fileName = `Inventario_Productos_${new Date().toISOString().slice(0,10)}`;
+
+      if (format === 'csv') {
+        XLSX.writeFile(workbook, `${fileName}.csv`, { bookType: 'csv' });
+      } else {
+        XLSX.writeFile(workbook, `${fileName}.xlsx`);
+      }
+
+      showToast(`Archivo ${format.toUpperCase()} descargado`);
+    }
+
+    // Download Sample Template for CSV / Excel
+    function downloadSampleTemplate() {
+      const templateData = [
+        {
+          'Nombre': 'Ejemplo Producto 1',
+          'Categoría': 'Ropa',
+          'Marca': 'ModaStyle',
+          'Ancho': '20',
+          'Largo': '30',
+          'Profundo': '2',
+          'Gramaje': '150g',
+          'Imagen': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&q=80'
+        },
+        {
+          'Nombre': 'Ejemplo Producto 2',
+          'Categoría': 'Hogar',
+          'Marca': 'HomeDeco',
+          'Ancho': '10',
+          'Largo': '10',
+          'Profundo': '12',
+          'Gramaje': '400g',
+          'Imagen': ''
+        }
+      ];
+
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Plantilla');
+      XLSX.writeFile(workbook, 'Plantilla_Productos_StockSync.xlsx');
+    }
+
+    // Reset All Local Data Confirmation
+    function resetDataConfirm() {
+      if (confirm('¿Restablecer el catálogo a los datos de prueba iniciales? Se perderán las modificaciones locales no exportadas.')) {
+        products = [...INITIAL_PRODUCTS];
+        saveLocalStorageData();
+        renderApp();
+        showToast('Datos restablecidos al estado inicial');
+      }
+    }
+
+    // Utility: UI Modal Toggle
+    function toggleModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.toggle('hidden');
+    }
+
+    // Utility: Toast Notification
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const isError = type === 'error';
+      const bgColor = isError ? 'bg-rose-600' : 'bg-slate-800 dark:bg-slate-100';
+      const textColor = isError ? 'text-white' : 'text-white dark:text-slate-800';
+
+      toast.className = `${bgColor} ${textColor} text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `
+        <i data-lucide="${isError ? 'alert-circle' : 'check-circle'}" class="w-4 h-4"></i>
+        <span>${escapeHtml(message)}</span>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Escape HTML Helper
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
